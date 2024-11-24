@@ -29,7 +29,7 @@ class MuseTalkRun:
         return {
             "required": {
                 "avatar_id":(inference_mode_list,{
-                    "default":inference_mode_list[0]
+                    "default":inference_mode_list[0] if inference_mode_list and inference_mode_list[0] else None
                 }),
                 "audio":("AUDIO", ),
                 "batch_size":("INT",{"default":4}),
