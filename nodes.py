@@ -15,6 +15,9 @@ MuseVCheckPointDir = os.path.join(
 comfy_musetalk_path = f'{comfy_path}/custom_nodes/ComfyUI-MuseTalk'
 sys.path.insert(0, comfy_musetalk_path)
 
+input_dir = folder_paths.get_input_directory()
+output_dir = os.path.join(folder_paths.get_output_directory(),"musetalk_results")
+
 from musetalk_utils.inference import Inference
 
 def get_avatar_list():
@@ -29,20 +32,20 @@ class MuseTalkRun:
         return {
             "required": {
                 "avatar_id":(inference_mode_list,{
-                    "default":inference_mode_list[0] if inference_mode_list and inference_mode_list[0] else None
+                    "default":inference_mode_list[0]
                 }),
                 "audio":("AUDIO", ),
-                "batch_size":("INT",{"default":4}),
-                "fps":("INT",{"default":30})
+                "batch_size":("INT",{"default":8}),
+                "fps":("INT",{"default":25}),
+                "enhance":("BOOLEAN",{"default":False})
             }
         }
 
-    RETURN_TYPES = ("STRING", )
-    RETURN_NAMES = ("audio_save_path", )
+    RETURN_TYPES = ("IMAGE", "AUDIO")
     FUNCTION = "run"
     CATEGORY = "MuseTalk"
 
-    def run(self, avatar_id, audio, batch_size, fps):
+    def run(self, avatar_id, audio, batch_size, fps, enhance):
         try:
             # 创建一个临时文件来保存合并后的音频
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
@@ -56,16 +59,11 @@ class MuseTalkRun:
                 torchaudio.save(temp_audio_path, combined_waveform, audio["sample_rate"], format="WAV")
 
             musetalk = Inference(avatar_id, batch_size)
-            save_path = f"{comfy_path}/custom_nodes/ComfyUI-MuseTalk/results/avatars/{avatar_id}/vid_output/{str(uuid.uuid4())}.mp4"
-            
-            state = musetalk.run(temp_audio_path, infer_video_path=save_path, fps=fps, enhance=True)
-
-            if state:
-                return save_path
-            else:
-                return ""
+            frames = musetalk.run(temp_audio_path, fps=fps, enhance=enhance)
+            return (frames, audio)
         except Exception as e:
-            return str(e)
+            Exception("error: " + str(e))
+            return ([], audio)
         finally:
             # 无论成功与否，删除临时音频文件
             if os.path.exists(temp_audio_path):
